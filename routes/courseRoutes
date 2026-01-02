@@ -1,0 +1,115 @@
+const express = require('express');
+const router = express.Router();
+
+// in-memory course enrollment data
+let courses = [
+    { id: 1, studentName: "Alice", courseName: "Python", duration: "3 months", fee: 20000 },
+    { id: 2, studentName: "Bob", courseName: "Java", duration: "4 months", fee: 25000 },
+    { id: 3, studentName: "Carol", courseName: "Python", duration: "3 months", fee: 19000 }
+];
+
+// Read
+router.get('/', (req, res) => {
+    res.json(courses);
+});
+
+// Update single enrollment
+router.put('/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const { studentName, courseName, duration, fee } = req.body;
+
+    courses = courses.map(course =>
+        course.id === id
+            ? { ...course, studentName, courseName, duration, fee }
+            : course
+    );
+
+    res.json({
+        message: "updated successfully",
+        courses
+    });
+});
+
+// Update multiple enrollments
+router.put('/', (req, res) => {
+    const updates = req.body;
+    let updatedCount = 0;
+
+    courses = courses.map(course => {
+        const match = updates.find(u => u.id === course.id);
+        if (match) {
+            updatedCount++;
+            return { ...course, ...match };
+        }
+        return course;
+    });
+
+    if (updatedCount === 0) {
+        return res.status(404).json({ message: "No matching enrollments found" });
+    }
+
+    res.json({
+        message: `Updated ${updatedCount} enrollment(s) successfully`,
+        courses
+    });
+});
+
+// Create (single or multiple enrollments)
+router.post('/', (req, res) => {
+    const newEntries = Array.isArray(req.body) ? req.body : [req.body];
+
+    const startId = courses.length > 0
+        ? Math.max(...courses.map(c => c.id)) + 1
+        : 1;
+
+    const createdCourses = newEntries.map((course, index) => ({
+        id: startId + index,
+        ...course
+    }));
+
+    courses = [...courses, ...createdCourses];
+
+    res.status(201).json({
+        message: `Added ${createdCourses.length} enrollment(s) successfully`,
+        courses
+    });
+});
+
+// Delete single enrollment
+router.delete('/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const initialLength = courses.length;
+
+    courses = courses.filter(course => course.id !== id);
+
+    if (courses.length === initialLength) {
+        return res.status(404).json({ message: "Enrollment not found" });
+    }
+
+    res.json({
+        message: `Enrollment with id ${id} deleted successfully`,
+        courses
+    });
+});
+
+// Delete multiple enrollments
+router.delete('/', (req, res) => {
+    const ids = Array.isArray(req.body) ? req.body : [req.body];
+    const initialLength = courses.length;
+
+    courses = courses.filter(course => !ids.includes(course.id));
+
+    const deletedCount = initialLength - courses.length;
+
+    if (deletedCount === 0) {
+        return res.status(404).json({ message: "No matching enrollments found to delete" });
+    }
+
+    res.json({
+        message: `Deleted ${deletedCount} enrollment(s) successfully`,
+        courses
+    });
+});
+
+// export router
+module.exports = router;
